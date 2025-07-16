@@ -110,7 +110,7 @@ func (n *rateCommand) Run(ctx context.Context, random bool) error {
 			"container": c,
 			"command":   netemCmd,
 		}).Debug("setting network rate for container")
-		netemCtx, cancel := context.WithTimeout(ctx, n.duration)
+		netemCtx, cancel := context.WithCancel(ctx)
 		cancels[i] = cancel
 		wg.Add(1)
 		go func(i int, c *container.Container) {

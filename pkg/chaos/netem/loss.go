@@ -81,7 +81,7 @@ func (n *lossCommand) Run(ctx context.Context, random bool) error {
 		log.WithFields(log.Fields{
 			"container": *c,
 		}).Debug("adding network random packet loss for container")
-		netemCtx, cancel := context.WithTimeout(ctx, n.duration)
+		netemCtx, cancel := context.WithCancel(ctx)
 		cancels[i] = cancel
 		wg.Add(1)
 		go func(i int, c *container.Container) {

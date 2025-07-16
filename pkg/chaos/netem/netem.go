@@ -95,7 +95,13 @@ func runNetem(ctx context.Context, client container.Client, c *container.Contain
 	// only done once when creating a new network emulation
 	if !change {
 		// create new context with timeout for canceling
-		stopCtx, cancel := context.WithTimeout(context.Background(), duration)
+		var stopCtx context.Context
+		var cancel context.CancelFunc
+		if duration <= 0 {
+			stopCtx, cancel = context.WithCancel(ctx)
+		} else {
+			stopCtx, cancel = context.WithTimeout(ctx, duration)
+		}
 		defer cancel()
 		// wait for specified duration and then stop netem (where it applied) or stop on ctx.Done()
 		select {
