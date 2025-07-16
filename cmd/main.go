@@ -290,6 +290,10 @@ func initializeCLICommands() []cli.Command {
 					Name:  "duration, d",
 					Usage: "network emulation duration; should be smaller than recurrent interval; use with optional unit suffix: 'ms/s/m/h'",
 				},
+				cli.BoolFlag{
+					Name:  "change, c",
+					Usage: "change existing network emulation instead of creating new one; will not be repeated on recurrent interval",
+				},
 				cli.StringFlag{
 					Name:  "interface, i",
 					Usage: "network interface to apply delay on",

@@ -100,17 +100,17 @@ func (_m *MockClient) ListContainers(_a0 context.Context, _a1 FilterFunc, _a2 Li
 	return r0, r1
 }
 
-// NetemContainer provides a mock function with given fields: _a0, _a1, _a2, _a3, _a4, _a5, _a6, _a7, _a8, _a9, _a10
-func (_m *MockClient) NetemContainer(_a0 context.Context, _a1 *Container, _a2 string, _a3 []string, _a4 []*net.IPNet, _a5 []string, _a6 []string, _a7 time.Duration, _a8 string, _a9 bool, _a10 bool) error {
-	ret := _m.Called(_a0, _a1, _a2, _a3, _a4, _a5, _a6, _a7, _a8, _a9, _a10)
+// NetemContainer provides a mock function with given fields: _a0, _a1, _a2, _a3, _a4, _a5, _a6, _a7, _a8, _a9, _a10, _a11
+func (_m *MockClient) NetemContainer(_a0 context.Context, _a1 *Container, _a2 string, _a3 []string, _a4 []*net.IPNet, _a5 []string, _a6 []string, _a7 time.Duration, _a8 string, _a9 bool, _a10 bool, _a11 bool) error {
+	ret := _m.Called(_a0, _a1, _a2, _a3, _a4, _a5, _a6, _a7, _a8, _a9, _a10, _a11)
 
 	if len(ret) == 0 {
 		panic("no return value specified for NetemContainer")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *Container, string, []string, []*net.IPNet, []string, []string, time.Duration, string, bool, bool) error); ok {
-		r0 = rf(_a0, _a1, _a2, _a3, _a4, _a5, _a6, _a7, _a8, _a9, _a10)
+	if rf, ok := ret.Get(0).(func(context.Context, *Container, string, []string, []*net.IPNet, []string, []string, time.Duration, string, bool, bool, bool) error); ok {
+		r0 = rf(_a0, _a1, _a2, _a3, _a4, _a5, _a6, _a7, _a8, _a9, _a10, _a11)
 	} else {
 		r0 = ret.Error(0)
 	}

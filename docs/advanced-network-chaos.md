@@ -121,6 +121,21 @@ pumba iptables --iptables-image ghcr.io/alexei-led/pumba-alpine-nettools:latest 
   myapp &
 ```
 
+### 6. Changing Degradation
+
+You can change the amount of an ongoing degradation:
+
+```bash
+# Add delay to outgoing traffic
+pumba netem --tc-image ghcr.io/alexei-led/pumba-alpine-nettools:latest \
+  --duration 10m rate --rate 1mbit myapp &
+
+# Modify the delay after some time
+sleep 120
+pumba netem --tc-image ghcr.io/alexei-led/pumba-alpine-nettools:latest \
+  --change rate --rate 3mbit myapp &
+```
+
 ## Kubernetes Integration
 
 When running in Kubernetes, you can use Pumba to test pod-to-pod communication resilience:

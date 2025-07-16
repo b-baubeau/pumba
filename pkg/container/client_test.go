@@ -391,7 +391,7 @@ func TestNetemContainer_Success(t *testing.T) {
 	engineClient.On("ContainerExecInspect", mock.Anything, "testID").Return(types.ContainerExecInspect{}, nil)
 
 	client := dockerClient{containerAPI: engineClient}
-	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, nil, nil, nil, 1*time.Millisecond, "", false, false)
+	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, nil, nil, nil, 1*time.Millisecond, "", false, false, false)
 
 	assert.NoError(t, err)
 	engineClient.AssertExpectations(t)
@@ -429,7 +429,7 @@ func TestNetemContainer_DryRun(t *testing.T) {
 
 	engineClient := NewMockEngine()
 	client := dockerClient{containerAPI: engineClient}
-	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, nil, nil, nil, 1*time.Millisecond, "", false, true)
+	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, nil, nil, nil, 1*time.Millisecond, "", false, true, false)
 
 	assert.NoError(t, err)
 	engineClient.AssertNotCalled(t, "ContainerExecCreate", mock.Anything)
@@ -476,7 +476,7 @@ func TestNetemContainerIPFilter_Success(t *testing.T) {
 	engineClient.On("ContainerExecInspect", ctx, "cmd5").Return(types.ContainerExecInspect{}, nil)
 
 	client := dockerClient{containerAPI: engineClient}
-	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, []*net.IPNet{{IP: net.IP{10, 10, 0, 1}, Mask: net.IPMask{255, 255, 255, 255}}}, nil, nil, 1*time.Millisecond, "", false, false)
+	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, []*net.IPNet{{IP: net.IP{10, 10, 0, 1}, Mask: net.IPMask{255, 255, 255, 255}}}, nil, nil, 1*time.Millisecond, "", false, false, false)
 
 	assert.NoError(t, err)
 	engineClient.AssertExpectations(t)
@@ -522,7 +522,7 @@ func TestNetemContainerSportFilter_Success(t *testing.T) {
 	engineClient.On("ContainerExecInspect", ctx, "cmd5").Return(types.ContainerExecInspect{}, nil)
 
 	client := dockerClient{containerAPI: engineClient}
-	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, nil, []string{"1234"}, nil, 1*time.Millisecond, "", false, false)
+	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, nil, []string{"1234"}, nil, 1*time.Millisecond, "", false, false, false)
 
 	assert.NoError(t, err)
 	engineClient.AssertExpectations(t)
@@ -568,7 +568,7 @@ func TestNetemContainerDportFilter_Success(t *testing.T) {
 	engineClient.On("ContainerExecInspect", ctx, "cmd5").Return(types.ContainerExecInspect{}, nil)
 
 	client := dockerClient{containerAPI: engineClient}
-	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, nil, nil, []string{"1234"}, 1*time.Millisecond, "", false, false)
+	err := client.NetemContainer(context.TODO(), c, "eth0", []string{"delay", "500ms"}, nil, nil, []string{"1234"}, 1*time.Millisecond, "", false, false, false)
 
 	assert.NoError(t, err)
 	engineClient.AssertExpectations(t)
@@ -1561,11 +1561,12 @@ func TestNetemContainer(t *testing.T) {
 		tcimage      string
 		pull         bool
 		dryrun       bool
+		change       bool
 	}
 	tests := []struct {
 		name    string
 		args    args
-		mockSet func(*mocks.APIClient, context.Context, *Container, string, []string, []*net.IPNet, []string, []string, string, bool, bool)
+		mockSet func(*mocks.APIClient, context.Context, *Container, string, []string, []*net.IPNet, []string, []string, string, bool, bool, bool)
 		wantErr bool
 	}{
 		{
@@ -1576,8 +1577,9 @@ func TestNetemContainer(t *testing.T) {
 				netInterface: "eth0",
 				netemCmd:     []string{"delay", "100ms"},
 				dryrun:       true,
+				change:       false,
 			},
-			mockSet: func(api *mocks.APIClient, ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, tcimage string, pull, dryrun bool) {
+			mockSet: func(api *mocks.APIClient, ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, tcimage string, pull, dryrun, change bool) {
 				// No calls expected in dry run mode
 			},
 			wantErr: false,
@@ -1590,8 +1592,9 @@ func TestNetemContainer(t *testing.T) {
 				netInterface: "eth0",
 				netemCmd:     []string{"delay", "100ms"},
 				dryrun:       false,
+				change:       false,
 			},
-			mockSet: func(api *mocks.APIClient, ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, tcimage string, pull, dryrun bool) {
+			mockSet: func(api *mocks.APIClient, ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, tcimage string, pull, dryrun, change bool) {
 				// The container has tc installed, so we execute directly
 				api.On("ContainerExecCreate", ctx, c.ID(), types.ExecConfig{Cmd: []string{"which", "tc"}}).Return(types.IDResponse{ID: "whichID"}, nil)
 				api.On("ContainerExecStart", ctx, "whichID", types.ExecStartCheck{}).Return(nil)
@@ -1614,8 +1617,9 @@ func TestNetemContainer(t *testing.T) {
 				netemCmd:     []string{"delay", "100ms"},
 				ips:          []*net.IPNet{{IP: net.ParseIP("10.0.0.1"), Mask: net.CIDRMask(32, 32)}},
 				dryrun:       false,
+				change:       false,
 			},
-			mockSet: func(api *mocks.APIClient, ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, tcimage string, pull, dryrun bool) {
+			mockSet: func(api *mocks.APIClient, ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, tcimage string, pull, dryrun, change bool) {
 				// The container has tc installed, so we execute directly
 				api.On("ContainerExecCreate", ctx, c.ID(), types.ExecConfig{Cmd: []string{"which", "tc"}}).Return(types.IDResponse{ID: "whichID"}, nil)
 				api.On("ContainerExecStart", ctx, "whichID", types.ExecStartCheck{}).Return(nil)
@@ -1673,8 +1677,9 @@ func TestNetemContainer(t *testing.T) {
 				netInterface: "eth0",
 				netemCmd:     []string{"delay", "100ms"},
 				dryrun:       false,
+				change:       false,
 			},
-			mockSet: func(api *mocks.APIClient, ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, tcimage string, pull, dryrun bool) {
+			mockSet: func(api *mocks.APIClient, ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, tcimage string, pull, dryrun, change bool) {
 				api.On("ContainerExecCreate", ctx, c.ID(), types.ExecConfig{Cmd: []string{"which", "tc"}}).Return(types.IDResponse{ID: "whichID"}, nil)
 				api.On("ContainerExecStart", ctx, "whichID", types.ExecStartCheck{}).Return(nil)
 				api.On("ContainerExecInspect", ctx, "whichID").Return(types.ContainerExecInspect{ExitCode: 1}, nil) // Exit code 1 indicates command not found
@@ -1687,10 +1692,10 @@ func TestNetemContainer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			api := NewMockEngine()
 			// Set up the mock expectations
-			tt.mockSet(api, tt.args.ctx, tt.args.c, tt.args.netInterface, tt.args.netemCmd, tt.args.ips, tt.args.sports, tt.args.dports, tt.args.tcimage, tt.args.pull, tt.args.dryrun)
+			tt.mockSet(api, tt.args.ctx, tt.args.c, tt.args.netInterface, tt.args.netemCmd, tt.args.ips, tt.args.sports, tt.args.dports, tt.args.tcimage, tt.args.pull, tt.args.dryrun, tt.args.change)
 
 			client := dockerClient{containerAPI: api, imageAPI: api}
-			err := client.NetemContainer(tt.args.ctx, tt.args.c, tt.args.netInterface, tt.args.netemCmd, tt.args.ips, tt.args.sports, tt.args.dports, tt.args.duration, tt.args.tcimage, tt.args.pull, tt.args.dryrun)
+			err := client.NetemContainer(tt.args.ctx, tt.args.c, tt.args.netInterface, tt.args.netemCmd, tt.args.ips, tt.args.sports, tt.args.dports, tt.args.duration, tt.args.tcimage, tt.args.pull, tt.args.dryrun, tt.args.change)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("dockerClient.NetemContainer() error = %v, wantErr %v", err, tt.wantErr)

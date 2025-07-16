@@ -32,6 +32,7 @@ func TestDelayCommand_Run(t *testing.T) {
 		pull         bool
 		limit        int
 		dryRun       bool
+		change       bool
 	}
 	type args struct {
 		random bool
@@ -184,6 +185,7 @@ func TestDelayCommand_Run(t *testing.T) {
 					image:    tt.fields.image,
 					limit:    tt.fields.limit,
 					dryRun:   tt.fields.dryRun,
+					change:   tt.fields.change,
 				},
 				time:         tt.fields.time,
 				jitter:       tt.fields.jitter,
@@ -202,12 +204,12 @@ func TestDelayCommand_Run(t *testing.T) {
 				}
 			}
 			if tt.args.random {
-				mockClient.On("NetemContainer", mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("*container.Container"), tt.fields.iface, tt.cmd, tt.fields.ips, tt.fields.sports, tt.fields.dports, tt.fields.duration, tt.fields.image, tt.fields.pull, tt.fields.dryRun).Return(nil)
+				mockClient.On("NetemContainer", mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("*container.Container"), tt.fields.iface, tt.cmd, tt.fields.ips, tt.fields.sports, tt.fields.dports, tt.fields.duration, tt.fields.image, tt.fields.pull, tt.fields.dryRun, tt.fields.change).Return(nil)
 				mockClient.On("StopNetemContainer", context.Background(), mock.AnythingOfType("*container.Container"), tt.fields.iface, tt.fields.ips, tt.fields.sports, tt.fields.dports, tt.fields.image, tt.fields.pull, tt.fields.dryRun).Return(nil)
 			} else {
 				for i := range tt.expected {
 					if tt.fields.limit == 0 || i < tt.fields.limit {
-						call = mockClient.On("NetemContainer", mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("*container.Container"), tt.fields.iface, tt.cmd, tt.fields.ips, tt.fields.sports, tt.fields.dports, tt.fields.duration, tt.fields.image, tt.fields.pull, tt.fields.dryRun)
+						call = mockClient.On("NetemContainer", mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("*container.Container"), tt.fields.iface, tt.cmd, tt.fields.ips, tt.fields.sports, tt.fields.dports, tt.fields.duration, tt.fields.image, tt.fields.pull, tt.fields.dryRun, tt.fields.change)
 						if tt.errs.netemError {
 							call.Return(errors.New("ERROR"))
 							goto Invoke

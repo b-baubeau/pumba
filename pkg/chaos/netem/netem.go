@@ -26,6 +26,7 @@ type netemCommand struct {
 	pull     bool
 	limit    int
 	dryRun   bool
+	change   bool
 }
 
 // Params common params for netem traffic shaping command
@@ -46,6 +47,8 @@ type Params struct {
 	Pull bool
 	// limit the number of target containers
 	Limit int
+	// change mode
+	Change bool
 }
 
 func newNetemCommand(client container.Client, gparams *chaos.GlobalParams, params *Params) netemCommand {
@@ -63,11 +66,12 @@ func newNetemCommand(client container.Client, gparams *chaos.GlobalParams, param
 		image:    params.Image,
 		pull:     params.Pull,
 		limit:    params.Limit,
+		change:   params.Change,
 	}
 }
 
 // run network emulation command, stop netem on timeout or abort
-func runNetem(ctx context.Context, client container.Client, c *container.Container, netInterface string, cmd []string, ips []*net.IPNet, sports, dports []string, duration time.Duration, tcimage string, pull, dryRun bool) error {
+func runNetem(ctx context.Context, client container.Client, c *container.Container, netInterface string, cmd []string, ips []*net.IPNet, sports, dports []string, duration time.Duration, tcimage string, pull, dryRun, change bool) error {
 	logger := log.WithFields(log.Fields{
 		"id":       c.ID(),
 		"name":     c.Name(),
@@ -79,32 +83,36 @@ func runNetem(ctx context.Context, client container.Client, c *container.Contain
 		"duration": duration,
 		"tc-image": tcimage,
 		"pull":     pull,
+		"change":   change,
 	})
 	logger.Debug("running netem command")
-	err := client.NetemContainer(ctx, c, netInterface, cmd, ips, sports, dports, duration, tcimage, pull, dryRun)
+	err := client.NetemContainer(ctx, c, netInterface, cmd, ips, sports, dports, duration, tcimage, pull, dryRun, change)
 	if err != nil {
 		return errors.Wrap(err, "netem failed")
 	}
 	logger.Debug("netem command started")
 
-	// create new context with timeout for canceling
-	stopCtx, cancel := context.WithTimeout(context.Background(), duration)
-	defer cancel()
-	// wait for specified duration and then stop netem (where it applied) or stop on ctx.Done()
-	select {
-	case <-ctx.Done():
-		logger.Debug("stopping netem command on abort")
-		// use different context to stop netem since parent context is canceled
-		err = client.StopNetemContainer(context.Background(), c, netInterface, ips, sports, dports, tcimage, pull, dryRun)
-		if err != nil {
-			return errors.Wrap(err, "failed to stop netem container")
-		}
-	case <-stopCtx.Done():
-		logger.Debug("stopping netem command on timout")
-		// use parent context to stop netem in container
-		err = client.StopNetemContainer(context.Background(), c, netInterface, ips, sports, dports, tcimage, pull, dryRun)
-		if err != nil {
-			return errors.Wrap(err, "failed to stop netem container")
+	// only done once when creating a new network emulation
+	if !change {
+		// create new context with timeout for canceling
+		stopCtx, cancel := context.WithTimeout(context.Background(), duration)
+		defer cancel()
+		// wait for specified duration and then stop netem (where it applied) or stop on ctx.Done()
+		select {
+		case <-ctx.Done():
+			logger.Debug("stopping netem command on abort")
+			// use different context to stop netem since parent context is canceled
+			err = client.StopNetemContainer(context.Background(), c, netInterface, ips, sports, dports, tcimage, pull, dryRun)
+			if err != nil {
+				return errors.Wrap(err, "failed to stop netem container")
+			}
+		case <-stopCtx.Done():
+			logger.Debug("stopping netem command on timout")
+			// use parent context to stop netem in container
+			err = client.StopNetemContainer(context.Background(), c, netInterface, ips, sports, dports, tcimage, pull, dryRun)
+			if err != nil {
+				return errors.Wrap(err, "failed to stop netem container")
+			}
 		}
 	}
 	return nil

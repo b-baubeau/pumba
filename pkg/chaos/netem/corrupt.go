@@ -30,6 +30,7 @@ type corruptCommand struct {
 	pull        bool
 	limit       int
 	dryRun      bool
+	change      bool
 }
 
 // NewCorruptCommand create new netem corrupt command
@@ -65,6 +66,7 @@ func NewCorruptCommand(client container.Client,
 		pull:        netemParams.Pull,
 		limit:       netemParams.Limit,
 		dryRun:      globalParams.DryRun,
+		change:      netemParams.Change,
 	}, nil
 }
 
@@ -115,7 +117,7 @@ func (n *corruptCommand) Run(ctx context.Context, random bool) error {
 		wg.Add(1)
 		go func(i int, c *container.Container) {
 			defer wg.Done()
-			errs[i] = runNetem(netemCtx, n.client, c, n.iface, netemCmd, n.ips, n.sports, n.dports, n.duration, n.image, n.pull, n.dryRun)
+			errs[i] = runNetem(netemCtx, n.client, c, n.iface, netemCmd, n.ips, n.sports, n.dports, n.duration, n.image, n.pull, n.dryRun, n.change)
 			if errs[i] != nil {
 				log.WithError(errs[i]).Warn("failed to set packet corrupt for container")
 			}

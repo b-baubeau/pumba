@@ -26,6 +26,7 @@ func Test_runNetem(t *testing.T) {
 		tcimage      string
 		pull         bool
 		dryRun       bool
+		change	     bool
 	}
 	tests := []struct {
 		name    string
@@ -119,7 +120,7 @@ func Test_runNetem(t *testing.T) {
 			// create timeout context
 			ctx, cancel := context.WithCancel(context.TODO())
 			// set NetemContainer mock call
-			call := mockClient.On("NetemContainer", ctx, tt.args.container, tt.args.netInterface, tt.args.cmd, tt.args.ips, tt.args.sports, tt.args.dports, tt.args.duration, tt.args.tcimage, tt.args.pull, tt.args.dryRun)
+			call := mockClient.On("NetemContainer", ctx, tt.args.container, tt.args.netInterface, tt.args.cmd, tt.args.ips, tt.args.sports, tt.args.dports, tt.args.duration, tt.args.tcimage, tt.args.pull, tt.args.dryRun, tt.args.change)
 			if tt.errs.startErr {
 				call.Return(errors.New("test error"))
 				goto Invoke
@@ -135,7 +136,7 @@ func Test_runNetem(t *testing.T) {
 			}
 			// invoke
 		Invoke:
-			if err := runNetem(ctx, mockClient, tt.args.container, tt.args.netInterface, tt.args.cmd, tt.args.ips, tt.args.sports, tt.args.dports, tt.args.duration, tt.args.tcimage, tt.args.pull, tt.args.dryRun); (err != nil) != tt.wantErr {
+			if err := runNetem(ctx, mockClient, tt.args.container, tt.args.netInterface, tt.args.cmd, tt.args.ips, tt.args.sports, tt.args.dports, tt.args.duration, tt.args.tcimage, tt.args.pull, tt.args.dryRun, tt.args.change); (err != nil) != tt.wantErr {
 				t.Errorf("runNetem() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			// abort

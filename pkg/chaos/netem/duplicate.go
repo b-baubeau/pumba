@@ -34,6 +34,7 @@ type duplicateCommand struct {
 	pull        bool
 	limit       int
 	dryRun      bool
+	change      bool
 }
 
 // NewDuplicateCommand create new netem duplicate command
@@ -69,6 +70,7 @@ func NewDuplicateCommand(client container.Client,
 		limit:       netemParams.Limit,
 		pull:        netemParams.Pull,
 		dryRun:      globalParams.DryRun,
+		change:      netemParams.Change,
 	}, nil
 }
 
@@ -119,7 +121,7 @@ func (n *duplicateCommand) Run(ctx context.Context, random bool) error {
 		wg.Add(1)
 		go func(i int, c *container.Container) {
 			defer wg.Done()
-			errs[i] = runNetem(netemCtx, n.client, c, n.iface, netemCmd, n.ips, n.sports, n.dports, n.duration, n.image, n.pull, n.dryRun)
+			errs[i] = runNetem(netemCtx, n.client, c, n.iface, netemCmd, n.ips, n.sports, n.dports, n.duration, n.image, n.pull, n.dryRun, n.change)
 			if errs[i] != nil {
 				log.WithError(errs[i]).Warn("failed to set packet duplicates for container")
 			}

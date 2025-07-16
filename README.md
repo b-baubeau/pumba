@@ -578,6 +578,21 @@ pumba iptables --iptables-image ghcr.io/alexei-led/pumba-alpine-nettools:latest 
   --duration 10m loss --probability 0.05 myapp &
 ```
 
+### Changing Network Condition
+
+Test how your application handles changing network issues:
+
+```bash
+# Add delay to outgoing traffic
+pumba netem --tc-image ghcr.io/alexei-led/pumba-alpine-nettools:latest \
+  --duration 10m rate --rate 1mbit myapp &
+
+# Modify the delay after some time
+sleep 120
+pumba netem --tc-image ghcr.io/alexei-led/pumba-alpine-nettools:latest \
+  --change rate --rate 3mbit myapp &
+```
+
 #### Testing Microservices Resilience
 
 Use Pumba to test how your microservices architecture responds to network failures between specific services:

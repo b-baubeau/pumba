@@ -25,7 +25,7 @@ type Client interface {
 	ExecContainer(context.Context, *Container, string, []string, bool) error
 	RestartContainer(context.Context, *Container, time.Duration, bool) error
 	RemoveContainer(context.Context, *Container, bool, bool, bool, bool) error
-	NetemContainer(context.Context, *Container, string, []string, []*net.IPNet, []string, []string, time.Duration, string, bool, bool) error
+	NetemContainer(context.Context, *Container, string, []string, []*net.IPNet, []string, []string, time.Duration, string, bool, bool, bool) error
 	StopNetemContainer(context.Context, *Container, string, []*net.IPNet, []string, []string, string, bool, bool) error
 	IPTablesContainer(context.Context, *Container, []string, []string, []*net.IPNet, []*net.IPNet, []string, []string, time.Duration, string, bool, bool) error
 	StopIPTablesContainer(context.Context, *Container, []string, []string, []*net.IPNet, []*net.IPNet, []string, []string, string, bool, bool) error

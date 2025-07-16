@@ -12,10 +12,15 @@ import (
 )
 
 func parseNetemParams(c *cli.Context, interval time.Duration) (*netem.Params, error) {
+	// change mode
+	change := c.Bool("change")
 	// get duration
 	duration := c.Duration("duration")
-	if duration == 0 {
+	if !change && duration == 0 {
 		return nil, errors.New("unset or invalid duration value")
+	}
+	if change && duration != 0 {
+		return nil, errors.New("duration must be unset in change mode")
 	}
 	if interval != 0 && duration >= interval {
 		return nil, errors.New("duration must be shorter than interval")
@@ -56,5 +61,6 @@ func parseNetemParams(c *cli.Context, interval time.Duration) (*netem.Params, er
 		Image:    c.String("tc-image"),
 		Pull:     c.Bool("pull-image"),
 		Limit:    c.Int("limit"),
+		Change:   change,
 	}, nil
 }

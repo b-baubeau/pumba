@@ -21,6 +21,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const ADD string = "add"
+const CHANGE string = "change"
+
 // NewClient returns a new Client instance which can be used to interact with the Docker API.
 func NewClient(dockerHost string, tlsConfig *tls.Config) (Client, error) {
 	httpClient, err := HTTPClient(dockerHost, tlsConfig)
@@ -275,7 +278,7 @@ func (client dockerClient) RemoveContainer(ctx context.Context, c *Container, fo
 }
 
 // NetemContainer injects sidecar netem container into the given container network namespace
-func (client dockerClient) NetemContainer(ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, duration time.Duration, tcimage string, pull, dryrun bool) error {
+func (client dockerClient) NetemContainer(ctx context.Context, c *Container, netInterface string, netemCmd []string, ips []*net.IPNet, sports, dports []string, duration time.Duration, tcimage string, pull, dryrun, change bool) error {
 	log.WithFields(log.Fields{
 		"name":     c.Name(),
 		"id":       c.ID(),
@@ -287,11 +290,12 @@ func (client dockerClient) NetemContainer(ctx context.Context, c *Container, net
 		"tc-image": tcimage,
 		"pull":     pull,
 		"dryrun":   dryrun,
+		"change":   change,
 	}).Info("running netem on container")
 	if len(ips) == 0 && len(sports) == 0 && len(dports) == 0 {
-		return client.startNetemContainer(ctx, c, netInterface, netemCmd, tcimage, pull, dryrun)
+		return client.netemContainer(ctx, c, netInterface, netemCmd, tcimage, pull, dryrun, change)
 	}
-	return client.startNetemContainerIPFilter(ctx, c, netInterface, netemCmd, ips, sports, dports, tcimage, pull, dryrun)
+	return client.netemContainerIPFilter(ctx, c, netInterface, netemCmd, ips, sports, dports, tcimage, pull, dryrun, change)
 }
 
 // StopNetemContainer stops the netem container injected into the given container network namespace
@@ -402,7 +406,7 @@ func (client dockerClient) StressContainer(ctx context.Context, c *Container, st
 	return "", nil, nil, nil
 }
 
-func (client dockerClient) startNetemContainer(ctx context.Context, c *Container, netInterface string, netemCmd []string, tcimage string, pull, dryrun bool) error {
+func (client dockerClient) netemContainer(ctx context.Context, c *Container, netInterface string, netemCmd []string, tcimage string, pull, dryrun, change bool) error {
 	log.WithFields(log.Fields{
 		"name":    c.Name(),
 		"id":      c.ID(),
@@ -411,15 +415,19 @@ func (client dockerClient) startNetemContainer(ctx context.Context, c *Container
 		"tcimage": tcimage,
 		"pull":    pull,
 		"dryrun":  dryrun,
-	}).Debug("start netem for container")
+	}).Debug("run netem for container")
 	if !dryrun {
+		keyword := ADD
+		if change {
+			keyword = CHANGE
+		}
 		// use dockerclient ExecStart to run Traffic Control:
 		// 'tc qdisc add dev eth0 root netem delay 100ms'
 		// http://www.linuxfoundation.org/collaborate/workgroups/networking/netem
-		netemCommand := append([]string{"qdisc", "add", "dev", netInterface, "root", "netem"}, netemCmd...)
+		netemCommand := append([]string{"qdisc", keyword, "dev", netInterface, "root", "netem"}, netemCmd...)
 		// stop disruption command
 		// netemStopCommand := "tc qdisc del dev eth0 root netem"
-		log.WithField("netem", strings.Join(netemCommand, " ")).Debug("adding netem qdisc")
+		log.WithField("netem", strings.Join(netemCommand, " ")).Debug("running netem qdisc")
 		return client.tcCommands(ctx, c, [][]string{netemCommand}, tcimage, pull)
 	}
 	return nil
@@ -467,8 +475,8 @@ func (client dockerClient) stopNetemContainer(ctx context.Context, c *Container,
 	return nil
 }
 
-func (client dockerClient) startNetemContainerIPFilter(ctx context.Context, c *Container, netInterface string, netemCmd []string,
-	ips []*net.IPNet, sports []string, dports []string, tcimage string, pull bool, dryrun bool) error {
+func (client dockerClient) netemContainerIPFilter(ctx context.Context, c *Container, netInterface string, netemCmd []string,
+	ips []*net.IPNet, sports, dports []string, tcimage string, pull, dryrun, change bool) error {
 	log.WithFields(log.Fields{
 		"name":    c.Name(),
 		"id":      c.ID(),
@@ -479,7 +487,8 @@ func (client dockerClient) startNetemContainerIPFilter(ctx context.Context, c *C
 		"tcimage": tcimage,
 		"pull":    pull,
 		"dryrun":  dryrun,
-	}).Debug("start netem for container with IP(s) filter")
+		"change":  change,
+	}).Debug("run netem for container with IP(s) filter")
 	if !dryrun {
 		// use dockerclient ExecStart to run Traffic Control
 		// to filter network, needs to create a priority scheduling, add a low priority
@@ -496,30 +505,34 @@ func (client dockerClient) startNetemContainerIPFilter(ctx context.Context, c *C
 		//      sfq  sfq  netem
 		// band  0    1     2
 
+		keyword := ADD
+		if change {
+			keyword = CHANGE
+		}
 		commands := [][]string{
 			// Create a priority-based queue. This *instantly* creates classes 1:1, 1:2, 1:3
 			// 'tc qdisc add dev <netInterface> root handle 1: prio'
 			// See more: http://man7.org/linux/man-pages/man8/tc-netem.8.html
-			{"qdisc", "add", "dev", netInterface, "root", "handle", "1:", "prio"},
+			{"qdisc", keyword, "dev", netInterface, "root", "handle", "1:", "prio"},
 			// Create Stochastic Fairness Queueing (sfq) queueing discipline for 1:1 class.
 			// 'tc qdisc add dev <netInterface> parent 1:1 handle 10: sfq'
 			// See more: https://linux.die.net/man/8/tc-sfq
-			{"qdisc", "add", "dev", netInterface, "parent", "1:1", "handle", "10:", "sfq"},
+			{"qdisc", keyword, "dev", netInterface, "parent", "1:1", "handle", "10:", "sfq"},
 			// Create Stochastic Fairness Queueing (sfq) queueing discipline for 1:2 class
 			// 'tc qdisc add dev <netInterface> parent 1:2 handle 20: sfq'
 			// See more: https://linux.die.net/man/8/tc-sfq
-			{"qdisc", "add", "dev", netInterface, "parent", "1:2", "handle", "20:", "sfq"},
+			{"qdisc", keyword, "dev", netInterface, "parent", "1:2", "handle", "20:", "sfq"},
 			// Add queueing discipline for 1:3 class. No traffic is going through 1:3 yet
 			// 'tc qdisc add dev <netInterface> parent 1:3 handle 30: netem <netemCmd>'
 			// See more: http://man7.org/linux/man-pages/man8/tc-netem.8.html
-			append([]string{"qdisc", "add", "dev", netInterface, "parent", "1:3", "handle", "30:", "netem"}, netemCmd...),
+			append([]string{"qdisc", keyword, "dev", netInterface, "parent", "1:3", "handle", "30:", "netem"}, netemCmd...),
 		}
 
 		// # redirect traffic to specific IP through band 3
 		// 'tc filter add dev <netInterface> protocol ip parent 1:0 prio 1 u32 match ip dst <targetIP> flowid 1:3'
 		// See more: http://man7.org/linux/man-pages/man8/tc-netem.8.html
 		for _, ip := range ips {
-			commands = append(commands, []string{"filter", "add", "dev", netInterface, "protocol", "ip", "parent", "1:0", "prio", "1",
+			commands = append(commands, []string{"filter", keyword, "dev", netInterface, "protocol", "ip", "parent", "1:0", "prio", "1",
 				"u32", "match", "ip", "dst", ip.String(), "flowid", "1:3"})
 		}
 
@@ -527,7 +540,7 @@ func (client dockerClient) startNetemContainerIPFilter(ctx context.Context, c *C
 		// 'tc filter add dev <netInterface> protocol ip parent 1:0 prio 1 u32 match ip <s/d>port <targetPort> 0xffff flowid 1:3'
 		// See more: http://man7.org/linux/man-pages/man8/tc-netem.8.html
 		for _, sport := range sports {
-			commands = append(commands, []string{"filter", "add", "dev", netInterface, "protocol", "ip", "parent", "1:0", "prio", "1",
+			commands = append(commands, []string{"filter", keyword, "dev", netInterface, "protocol", "ip", "parent", "1:0", "prio", "1",
 				"u32", "match", "ip", "sport", sport, "0xffff", "flowid", "1:3"})
 		}
 
@@ -535,7 +548,7 @@ func (client dockerClient) startNetemContainerIPFilter(ctx context.Context, c *C
 		// 'tc filter add dev <netInterface> protocol ip parent 1:0 prio 1 u32 match ip <s/d>port <targetPort> 0xffff flowid 1:3'
 		// See more: http://man7.org/linux/man-pages/man8/tc-netem.8.html
 		for _, dport := range dports {
-			commands = append(commands, []string{"filter", "add", "dev", netInterface, "protocol", "ip", "parent", "1:0", "prio", "1",
+			commands = append(commands, []string{"filter", keyword, "dev", netInterface, "protocol", "ip", "parent", "1:0", "prio", "1",
 				"u32", "match", "ip", "dport", dport, "0xffff", "flowid", "1:3"})
 		}
 
